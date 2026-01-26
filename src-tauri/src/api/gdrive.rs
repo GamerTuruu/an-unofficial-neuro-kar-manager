@@ -1,7 +1,5 @@
 use crate::api::rclone;
 use rclone_sdk::ClientInfo;
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 use std::time::Duration;
 use tokio::process::Command;
 use tokio::time::sleep;
