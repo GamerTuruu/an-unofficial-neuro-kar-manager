@@ -20,12 +20,13 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Setup node
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
         with:
-          node-version: lts/*
+          version: 10
+          run_install: true
+          cache: true
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -39,10 +40,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - uses: pnpm/action-setup@v4
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          version: 10
-          run_install: true
+          workspaces: './src-tauri -> target'
+          key: ${{ matrix.platform }}
 
       - uses: tauri-apps/tauri-action@a17391cacddaccc3ab8555be3f0e2ac19b10705a  # v1 (dev)
         id: tauri
