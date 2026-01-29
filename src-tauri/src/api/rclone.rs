@@ -26,17 +26,68 @@ fn get_rclone_binary_name() -> &'static str {
     }
 }
 
+/// Get a writable directory for storing the rclone binary.
+/// Uses OS-specific locations to ensure write access.
+fn get_bin_dir() -> Result<PathBuf, String> {
+    #[cfg(target_os = "linux")]
+    {
+        // Linux: Always use XDG data directory (handles AppImage and regular installations)
+        let data_dir = if let Ok(xdg_data) = env::var("XDG_DATA_HOME") {
+            PathBuf::from(xdg_data)
+        } else if let Ok(home) = env::var("HOME") {
+            PathBuf::from(home).join(".local").join("share")
+        } else {
+            return Err("Cannot determine user data directory".to_string());
+        };
+        Ok(data_dir.join("unofficial-neuro-kar-manager").join("bin"))
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Use AppData\Local
+        if let Ok(appdata) = env::var("LOCALAPPDATA") {
+            Ok(PathBuf::from(appdata).join("unofficial-neuro-kar-manager").join("bin"))
+        } else if let Ok(userprofile) = env::var("USERPROFILE") {
+            Ok(PathBuf::from(userprofile).join("AppData").join("Local").join("unofficial-neuro-kar-manager").join("bin"))
+        } else {
+            Err("Cannot determine AppData directory".to_string())
+        }
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: Use Application Support
+        if let Ok(home) = env::var("HOME") {
+            Ok(PathBuf::from(home).join("Library").join("Application Support").join("unofficial-neuro-kar-manager").join("bin"))
+        } else {
+            Err("Cannot determine home directory".to_string())
+        }
+    }
+    
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    {
+        // Default: Try to use directory adjacent to executable
+        if let Ok(current_exe) = env::current_exe() {
+            if let Some(parent) = current_exe.parent() {
+                Ok(parent.join("bin"))
+            } else {
+                Err("Cannot determine executable parent directory".to_string())
+            }
+        } else {
+            Err("Cannot determine executable path".to_string())
+        }
+    }
+}
+
 /// Resolves the path to the rclone binary.
 async fn resolve_rclone_path() -> Option<PathBuf> {
     let binary_name = get_rclone_binary_name();
 
-    // 1. Priority: Check where we expect to download it (adjacent to exe)
-    if let Ok(current_exe) = env::current_exe() {
-        if let Some(target_dir) = current_exe.parent() {
-            let bin_path = target_dir.join("bin").join(binary_name);
-            if bin_path.exists() {
-                return Some(bin_path);
-            }
+    // 1. Priority: Check bin directory
+    if let Ok(bin_dir) = get_bin_dir() {
+        let bin_path = bin_dir.join(binary_name);
+        if bin_path.exists() {
+            return Some(bin_path);
         }
     }
 
@@ -155,12 +206,11 @@ pub async fn download_rclone() -> Result<PathBuf, String> {
     );
 
     let binary_name = get_rclone_binary_name();
-    let current_exe = env::current_exe().map_err(|e| e.to_string())?;
-
-    let target_dir = current_exe.parent().ok_or("No parent dir")?.join("bin");
+    
+    let target_dir = get_bin_dir()?;
     tokio::fs::create_dir_all(&target_dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Failed to create bin directory: {}", e))?;
 
     let target_path = target_dir.join(binary_name);
 
