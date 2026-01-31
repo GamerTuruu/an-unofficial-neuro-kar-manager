@@ -5,6 +5,55 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::oneshot;
 
+#[cfg(windows)]
+pub mod windows_job {
+    use std::sync::OnceLock;
+    use windows_sys::Win32::Foundation::HANDLE;
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+        SetInformationJobObject,
+    };
+
+    struct JobHandle(HANDLE);
+    unsafe impl Send for JobHandle {}
+    unsafe impl Sync for JobHandle {}
+
+    static GLOBAL_JOB: OnceLock<JobHandle> = OnceLock::new();
+
+    fn create_job() -> JobHandle {
+        unsafe {
+            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if job.is_null() {
+                panic!("Failed to create job object");
+            }
+
+            let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+            let r = SetInformationJobObject(
+                job,
+                JobObjectExtendedLimitInformation,
+                &info as *const _ as *const _,
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            );
+
+            if r == 0 {
+                panic!("Failed to set job info");
+            }
+
+            JobHandle(job)
+        }
+    }
+
+    pub fn assign_process(process_handle: std::os::windows::io::RawHandle) {
+        let job = GLOBAL_JOB.get_or_init(create_job);
+        unsafe {
+            let _ = AssignProcessToJobObject(job.0, process_handle as HANDLE);
+        }
+    }
+}
+
 /// Run a command with cancellation support and stderr streaming
 pub async fn run_cancellable_command<F>(
     mut cmd: Command,
@@ -32,6 +81,11 @@ where
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+    #[cfg(windows)]
+    if let Some(handle) = child.raw_handle() {
+        windows_job::assign_process(handle);
+    }
 
     let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
     let mut stdout = child.stdout.take().ok_or("Failed to capture stdout")?;

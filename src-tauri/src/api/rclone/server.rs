@@ -51,8 +51,16 @@ pub async fn start_rc_server() -> Result<(), String> {
         });
     }
 
-    cmd.spawn()
+    let child = cmd
+        .spawn()
         .map_err(|e| format!("Failed to spawn rclone rcd: {}", e))?;
+
+    #[cfg(windows)]
+    if let Some(handle) = child.raw_handle() {
+        crate::utils::windows_job::assign_process(handle);
+    }
+    #[cfg(not(windows))]
+    let _ = child;
 
     Ok(())
 }
