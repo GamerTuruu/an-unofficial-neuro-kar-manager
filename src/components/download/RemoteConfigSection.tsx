@@ -82,16 +82,20 @@ export function RemoteConfigSection({
         </div>
 
         {!selectedRemote && (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onCreateConfig}
-            disabled={disabled || loading}
-            title="Authenticate & Generate Config"
-          >
-            <Key className="h-4 w-4" />
-          </Button>
+          <div className="relative inline-flex h-10 w-10 overflow-hidden rounded-md p-0.5">
+            <span className="absolute -inset-full animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-pink-500)_0%,var(--color-violet-500)_50%,var(--color-pink-500)_100%)]" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onCreateConfig}
+              disabled={disabled || loading}
+              title="Authenticate & Generate Config"
+              className="relative h-full w-full bg-background hover:bg-background/90"
+            >
+              <Key className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </div>
     </div>

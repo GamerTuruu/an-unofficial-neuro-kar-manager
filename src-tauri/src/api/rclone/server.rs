@@ -40,6 +40,17 @@ pub async fn start_rc_server() -> Result<(), String> {
     #[cfg(windows)]
     cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
+    #[cfg(target_os = "linux")]
+    unsafe {
+        cmd.pre_exec(|| {
+            let r = libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+            if r != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+
     cmd.spawn()
         .map_err(|e| format!("Failed to spawn rclone rcd: {}", e))?;
 

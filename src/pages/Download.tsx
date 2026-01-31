@@ -1,7 +1,10 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { DownloadCloud } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DownloadsButton } from "@/components/DownloadsButton";
+import { AuthDialog } from "@/components/download/AuthDialog";
 import { BackupWarningDialog } from "@/components/download/BackupWarningDialog";
 import { DestinationSection } from "@/components/download/DestinationSection";
 import { DownloadLogs } from "@/components/download/DownloadLogs";
@@ -25,16 +28,31 @@ export default function DownloadPage() {
     undefined,
   );
   const [showBrowser, setShowBrowser] = useState(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+
+  useEffect(() => {
+    const unlistenPromise = listen<string>("gdrive-auth-url", (event) => {
+      setAuthUrl(event.payload);
+      setShowAuthDialog(true);
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
 
   const handleCreateConfig = async () => {
-    download.appendLog("\nStarting authorization flow... check your browser.");
+    download.appendLog("\nStarting authorization flow...");
     try {
       const newConfigName = await remoteConfig.createConfig();
       download.appendLog(
         `\nAuthorization successful. Config created: ${newConfigName}`,
       );
+      setShowAuthDialog(false);
     } catch (err) {
       download.appendLog(`\nAuthorization failed: ${err}`);
+      setShowAuthDialog(false);
     }
   };
 
@@ -122,6 +140,17 @@ export default function DownloadPage() {
         dryRunResult={dryRunResult}
         hasBackup={form.createBackup}
         onConfirm={handleConfirmDownload}
+      />
+
+      <AuthDialog
+        url={authUrl}
+        open={showAuthDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            invoke("cancel_gdrive_auth").catch(console.error);
+          }
+          setShowAuthDialog(open);
+        }}
       />
 
       {showBrowser && remoteConfig.isConfigValid && (

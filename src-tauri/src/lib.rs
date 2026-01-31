@@ -19,11 +19,13 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(api::gdrive::GdriveAuthState::default())
         .invoke_handler(tauri::generate_handler![
             download_rclone,
             check_rclone,
             api::gdrive::get_gdrive_remotes,
             api::gdrive::create_gdrive_remote,
+            api::gdrive::cancel_gdrive_auth,
             api::gdrive::list_gdrive_files,
             api::gdrive::download_gdrive,
             api::gdrive::check_dry_run,
