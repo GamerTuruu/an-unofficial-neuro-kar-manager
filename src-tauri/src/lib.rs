@@ -1,4 +1,5 @@
 pub mod api;
+pub mod utils;
 
 #[tauri::command]
 async fn download_rclone() -> Result<String, String> {
@@ -25,6 +26,7 @@ pub fn run() {
             api::gdrive::create_gdrive_remote,
             api::gdrive::list_gdrive_files,
             api::gdrive::download_gdrive,
+            api::gdrive::check_dry_run,
             api::rclone::get_stats,
             api::rclone::stop_rc_server
         ])

@@ -13,6 +13,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useDownloadForm } from "@/hooks/useDownloadForm";
 import { useDownloadProcess } from "@/hooks/useDownloadProcess";
 import { useRemoteConfig } from "@/hooks/useRemoteConfig";
+import type { DryRunResult } from "@/types/download";
 
 export default function DownloadPage() {
   const remoteConfig = useRemoteConfig();
@@ -20,7 +21,9 @@ export default function DownloadPage() {
   const download = useDownloadProcess();
 
   const [showWarning, setShowWarning] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<DryRunResult | undefined>(
+    undefined,
+  );
   const [showBrowser, setShowBrowser] = useState(false);
 
   const handleCreateConfig = async () => {
@@ -54,34 +57,58 @@ export default function DownloadPage() {
     e.preventDefault();
 
     if (!form.isValid(remoteConfig.isConfigValid)) {
-      download.appendLog("Please provide source, destination, and remote config.");
+      download.appendLog(
+        "Please provide source, destination, and remote config.",
+      );
       return;
     }
 
-    // If backup is not enabled, show warning
-    if (!form.createBackup && !pendingDownload) {
-      setShowWarning(true);
-      return;
-    }
-
-    // Execute download
-    await executeDownload();
-  };
-
-  const executeDownload = async () => {
     if (!remoteConfig.selectedRemote) {
       download.appendLog("No remote configuration selected.");
       return;
     }
 
-    setPendingDownload(false);
-    await download.startDownload({
+    const hasFileSelection =
+      !!form.selectedFiles && form.selectedFiles.length > 0;
+    const effectiveDeleteExcluded = hasFileSelection
+      ? form.deleteExcluded
+      : false;
+
+    await download.startDownload(
+      {
+        source: form.source,
+        destination: form.destination,
+        remoteConfig: remoteConfig.selectedRemote,
+        createSubfolder: form.useSubfolder,
+        selectedFiles: form.selectedFiles,
+        createBackup: form.createBackup,
+        deleteExcluded: effectiveDeleteExcluded,
+      },
+      (result) => {
+        setDryRunResult(result);
+        setShowWarning(true);
+      },
+    );
+  };
+
+  const handleConfirmDownload = async () => {
+    setShowWarning(false);
+    if (!remoteConfig.selectedRemote) return;
+
+    const hasFileSelection =
+      !!form.selectedFiles && form.selectedFiles.length > 0;
+    const effectiveDeleteExcluded = hasFileSelection
+      ? form.deleteExcluded
+      : false;
+
+    await download.executeDownload({
       source: form.source,
       destination: form.destination,
       remoteConfig: remoteConfig.selectedRemote,
       createSubfolder: form.useSubfolder,
       selectedFiles: form.selectedFiles,
       createBackup: form.createBackup,
+      deleteExcluded: effectiveDeleteExcluded,
     });
   };
 
@@ -92,17 +119,9 @@ export default function DownloadPage() {
       <BackupWarningDialog
         open={showWarning}
         onOpenChange={setShowWarning}
-        onConfirm={() => {
-          setPendingDownload(true);
-          setTimeout(() => {
-            const formElement = document.querySelector("form");
-            if (formElement) {
-              formElement.dispatchEvent(
-                new Event("submit", { cancelable: true, bubbles: true }),
-              );
-            }
-          }, 0);
-        }}
+        dryRunResult={dryRunResult}
+        hasBackup={form.createBackup}
+        onConfirm={handleConfirmDownload}
       />
 
       {showBrowser && remoteConfig.isConfigValid && (
@@ -161,6 +180,11 @@ export default function DownloadPage() {
               onUseSubfolderChange={form.setUseSubfolder}
               createBackup={form.createBackup}
               onCreateBackupChange={form.setCreateBackup}
+              deleteExcluded={form.deleteExcluded}
+              onDeleteExcludedChange={form.setDeleteExcluded}
+              hasFileSelection={
+                !!form.selectedFiles && form.selectedFiles.length > 0
+              }
               onSelectFolder={handleSelectDestination}
               disabled={isDisabled}
             />

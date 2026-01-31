@@ -1,14 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
-
-interface DownloadParams {
-  source: string;
-  destination: string;
-  remoteConfig: string;
-  createSubfolder: boolean;
-  selectedFiles: string[] | null;
-  createBackup: boolean;
-}
+import type { DownloadParams, DryRunResult } from "@/types/download";
 
 export function useDownloadProcess() {
   const [loading, setLoading] = useState(false);
@@ -20,12 +12,24 @@ export function useDownloadProcess() {
     setLog((prev) => `${prev}${message}\n`);
   };
 
-  const startDownload = async (params: DownloadParams) => {
+  const checkDryRun = async (
+    params: Omit<DownloadParams, "createBackup">,
+  ): Promise<DryRunResult> => {
+    const result = await invoke<DryRunResult>("check_dry_run", {
+      source: params.source,
+      destination: params.destination,
+      remoteConfig: params.remoteConfig,
+      createSubfolder: params.createSubfolder,
+      selectedFiles: params.selectedFiles,
+      deleteExcluded: params.deleteExcluded,
+    });
+    return result;
+  };
+
+  const executeDownload = async (params: DownloadParams) => {
     setLoading(true);
     setStatus("Downloading...");
-    setLog(
-      `Starting download...\nSource: ${params.source}\nDestination: ${params.destination}\nRemote: ${params.remoteConfig}\nBackup: ${params.createBackup ? "Yes" : "No"}\n`,
-    );
+    appendLog(`Starting download...\n`);
 
     try {
       const output = await invoke<string>("download_gdrive", {
@@ -35,6 +39,7 @@ export function useDownloadProcess() {
         createSubfolder: params.createSubfolder,
         selectedFiles: params.selectedFiles,
         createBackup: params.createBackup,
+        deleteExcluded: params.deleteExcluded,
       });
       setStatus("Download completed successfully.");
       appendLog(`\n${output}`);
@@ -45,6 +50,40 @@ export function useDownloadProcess() {
     } finally {
       setLoading(false);
       setCancelling(false);
+    }
+  };
+
+  const startDownload = async (
+    params: DownloadParams,
+    onWarningNeeded: (dryRunResult: DryRunResult) => void,
+  ) => {
+    setLog(
+      `Download Configuration:\nSource: ${params.source}\nDestination: ${params.destination}\nRemote: ${params.remoteConfig}\nBackup: ${params.createBackup ? "Yes" : "No"}\nDelete Excluded: ${params.deleteExcluded ? "Yes" : "No"}\n`,
+    );
+
+    appendLog("\nPerforming dry run to check for potential file deletions...");
+
+    try {
+      const result = await checkDryRun(params);
+      appendLog(`Dry run complete: ${result.stats}`);
+
+      // Only show warning if files would be deleted
+      if (result.would_delete) {
+        appendLog("Warning: Files will be deleted during this operation.");
+        onWarningNeeded(result);
+      } else {
+        appendLog("No files will be deleted. Proceeding with download...");
+        await executeDownload(params);
+      }
+    } catch (error) {
+      appendLog(`\nDry run failed: ${error}`);
+      appendLog("You can still proceed, but file deletion status is unknown.");
+      // Show warning anyway since we couldn't verify
+      onWarningNeeded({
+        would_delete: false,
+        deleted_files: [],
+        stats: "Dry run check failed",
+      });
     }
   };
 
@@ -68,6 +107,7 @@ export function useDownloadProcess() {
     log,
     appendLog,
     startDownload,
+    executeDownload,
     cancelDownload,
   };
 }

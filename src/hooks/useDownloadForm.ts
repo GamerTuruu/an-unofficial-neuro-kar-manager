@@ -7,6 +7,7 @@ export function useDownloadForm() {
   const [destination, setDestination] = useState("");
   const [useSubfolder, setUseSubfolder] = useState(true);
   const [createBackup, setCreateBackup] = useState(true);
+  const [deleteExcluded, setDeleteExcluded] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<string[] | null>(null);
 
   const isValid = (remoteConfigValid: boolean) => {
@@ -22,6 +23,8 @@ export function useDownloadForm() {
     setUseSubfolder,
     createBackup,
     setCreateBackup,
+    deleteExcluded,
+    setDeleteExcluded,
     selectedFiles,
     setSelectedFiles,
     isValid,

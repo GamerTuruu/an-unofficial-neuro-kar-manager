@@ -4807,6 +4807,7 @@ version = "0.0.1"
 dependencies = [
  "chrono",
  "rclone-sdk",
+ "regex",
  "reqwest 0.13.1",
  "serde",
  "serde_json",

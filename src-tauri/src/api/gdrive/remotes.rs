@@ -1,5 +1,5 @@
 use crate::api::rclone;
-use crate::api::utils::extract_json;
+use crate::utils::extract_json;
 use tokio::process::Command;
 
 const DEFAULT_RCLONE_CONFIG_NAME: &str = "gdrive_unofficial_neuro_kar";

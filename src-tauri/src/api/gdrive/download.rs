@@ -1,9 +1,26 @@
-use crate::api::rclone;
 use super::utils::parse_gdrive_id;
+use crate::api::rclone;
 use rclone_sdk::ClientInfo;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::time::sleep;
+
+/// Result from executing a sync job
+struct SyncJobResult {
+    deletes: i64,
+    checks: i64,
+    transfers: i64,
+    errors: i64,
+}
+
+/// Result from a dry run check
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DryRunResult {
+    pub would_delete: bool,
+    pub deleted_files: Vec<String>,
+    pub stats: String,
+}
 
 /// Configuration for a Google Drive download operation
 struct DownloadConfig {
@@ -13,6 +30,7 @@ struct DownloadConfig {
     create_subfolder: bool,
     selected_files: Option<Vec<String>>,
     create_backup: bool,
+    delete_excluded: bool,
 }
 
 /// Paths for source and destination filesystems
@@ -30,6 +48,7 @@ impl DownloadConfig {
         create_subfolder: bool,
         selected_files: Option<Vec<String>>,
         create_backup: bool,
+        delete_excluded: bool,
     ) -> Result<Self, String> {
         let remote_config = remote_config
             .ok_or("Remote configuration is required. Please authorize first.".to_string())?;
@@ -41,6 +60,7 @@ impl DownloadConfig {
             create_subfolder,
             selected_files,
             create_backup,
+            delete_excluded,
         })
     }
 
@@ -105,14 +125,26 @@ impl DownloadConfig {
             "dstFs": paths.dst_fs
         });
 
+        // Build config object
+        let mut config = serde_json::Map::new();
+
         if let Some(ref backup) = paths.backup_path {
-            body["_config"] = serde_json::json!({
-                "BackupDir": backup
-            });
+            config.insert("BackupDir".to_string(), serde_json::json!(backup));
+        }
+
+        if !config.is_empty() {
+            body["_config"] = serde_json::json!(config);
         }
 
         if let Some(ref files) = self.selected_files {
-            body["_filter"] = build_file_filter(files);
+            let mut filter = build_file_filter(files);
+            // Delete files not found in the filter
+            if self.delete_excluded {
+                if let Some(obj) = filter.as_object_mut() {
+                    obj.insert("DeleteExcluded".to_string(), serde_json::json!(true));
+                }
+            }
+            body["_filter"] = filter;
         }
 
         body
@@ -139,11 +171,11 @@ fn build_file_filter(files: &[String]) -> serde_json::Value {
     })
 }
 
-/// Start the sync operation and return the job ID
+/// Start the sync operation, wait for completion, and return the results
 async fn start_sync_job(
     client: &rclone_sdk::Client,
     body: &serde_json::Value,
-) -> Result<i64, String> {
+) -> Result<SyncJobResult, String> {
     let response = client
         .client()
         .post(format!("{}/sync/sync", client.baseurl()))
@@ -162,7 +194,13 @@ async fn start_sync_job(
         .await
         .map_err(|e| format!("Failed to parse sync response: {}", e))?;
 
-    result.jobid.ok_or("No jobid returned".to_string())
+    let jobid = result.jobid.ok_or("No jobid returned".to_string())?;
+
+    // Poll for job completion
+    poll_job_completion(client, jobid).await?;
+
+    // Get final stats
+    get_job_stats(client).await
 }
 
 /// Poll for job completion
@@ -214,6 +252,28 @@ async fn poll_job_completion(client: &rclone_sdk::Client, jobid: i64) -> Result<
     }
 }
 
+/// Get job statistics from rclone
+async fn get_job_stats(client: &rclone_sdk::Client) -> Result<SyncJobResult, String> {
+    let stats_response = client
+        .client()
+        .post(format!("{}/core/stats", client.baseurl()))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to get stats: {}", e))?;
+
+    let stats: serde_json::Value = stats_response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse stats: {}", e))?;
+
+    Ok(SyncJobResult {
+        deletes: stats["deletes"].as_i64().unwrap_or(0),
+        checks: stats["checks"].as_i64().unwrap_or(0),
+        transfers: stats["transfers"].as_i64().unwrap_or(0),
+        errors: stats["errors"].as_i64().unwrap_or(0),
+    })
+}
+
 #[tauri::command]
 pub async fn download_gdrive(
     source: String,
@@ -222,6 +282,7 @@ pub async fn download_gdrive(
     create_subfolder: bool,
     selected_files: Option<Vec<String>>,
     create_backup: bool,
+    delete_excluded: bool,
 ) -> Result<String, String> {
     let config = DownloadConfig::new(
         source,
@@ -230,14 +291,76 @@ pub async fn download_gdrive(
         create_subfolder,
         selected_files,
         create_backup,
+        delete_excluded,
     )?;
+
+    let _ = rclone::stop_rc_server().await;
 
     let client = rclone::get_sdk_client().await?;
     let paths = config.build_filesystem_paths()?;
     let body = config.build_request_body(&paths);
 
-    let jobid = start_sync_job(&client, &body).await?;
-    poll_job_completion(&client, jobid).await?;
+    let _result = start_sync_job(&client, &body).await?;
 
     Ok("Download completed successfully".to_string())
+}
+
+/// Perform a dry run sync to detect what files would be deleted
+#[tauri::command]
+pub async fn check_dry_run(
+    source: String,
+    destination: String,
+    remote_config: Option<String>,
+    create_subfolder: bool,
+    selected_files: Option<Vec<String>>,
+    delete_excluded: bool,
+) -> Result<DryRunResult, String> {
+    let config = DownloadConfig::new(
+        source,
+        destination,
+        remote_config,
+        create_subfolder,
+        selected_files,
+        false, // No backup for dry run check
+        delete_excluded,
+    )?;
+
+    let _ = rclone::stop_rc_server().await;
+
+    let client = rclone::get_sdk_client().await?;
+    let paths = config.build_filesystem_paths()?;
+
+    // Build the sync request with dry-run flag
+    let mut body = config.build_request_body(&paths);
+
+    // Add dry-run config
+    if let Some(config_obj) = body.get_mut("_config") {
+        if let Some(config_map) = config_obj.as_object_mut() {
+            config_map.insert("DryRun".to_string(), serde_json::json!(true));
+        }
+    } else {
+        body["_config"] = serde_json::json!({
+            "DryRun": true
+        });
+    }
+
+    // Capture the current log offset to ignore previous logs
+    let start_offset = rclone::LogManager::get_current_offset().await;
+
+    let result = start_sync_job(&client, &body).await?;
+
+    // Parse logs from the offset
+    let deleted_files = rclone::LogManager::parse_deleted_files(start_offset).await?;
+
+    let would_delete = result.deletes > 0 || !deleted_files.is_empty();
+    let stats_summary = format!(
+        "Checks: {}, Transfers: {}, Deletes: {}, Errors: {}",
+        result.checks, result.transfers, result.deletes, result.errors
+    );
+
+    Ok(DryRunResult {
+        would_delete,
+        deleted_files,
+        stats: stats_summary,
+    })
 }
