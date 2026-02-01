@@ -73,10 +73,27 @@ impl DownloadConfig {
         let src_fs = format!("{},root_folder_id={}:", self.remote_config, root_id);
 
         let dst_path = self.build_destination_path();
-        let dst_fs = dst_path.to_string_lossy().to_string();
+        let mut dst_fs = dst_path.to_string_lossy().to_string();
+
+        // Windows: Avoid `C:` being interpreted as a remote, use UNC paths
+        if cfg!(windows) {
+            let mut path_str = dst_fs.replace("/", "\\");
+            if !path_str.starts_with("\\\\?\\") {
+                path_str = format!("\\\\?\\{}", path_str);
+            }
+            dst_fs = path_str;
+        }
 
         let backup_path = if self.create_backup {
-            Some(self.build_backup_path(&dst_path)?)
+            let mut backup = self.build_backup_path(&dst_path)?;
+            if cfg!(windows) {
+                let mut path_str = backup.replace("/", "\\");
+                if !path_str.starts_with("\\\\?\\") {
+                    path_str = format!("\\\\?\\{}", path_str);
+                }
+                backup = path_str;
+            }
+            Some(backup)
         } else {
             None
         };
