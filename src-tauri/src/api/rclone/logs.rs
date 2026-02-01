@@ -1,20 +1,24 @@
-use crate::utils::get_app_data_dir;
 use regex::Regex;
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt};
 
 pub struct LogManager;
 
 impl LogManager {
     /// Get the path to the rclone log file.
-    pub fn get_log_path() -> Result<PathBuf, String> {
-        Ok(get_app_data_dir()?.join("rclone.log"))
+    pub fn get_log_path(app: &AppHandle) -> Result<PathBuf, String> {
+        Ok(app
+            .path()
+            .app_local_data_dir()
+            .map_err(|e| format!("Failed to get app data dir: {}", e))?
+            .join("rclone.log"))
     }
 
     /// Clear the log file (e.g., on server startup).
-    pub async fn clear() -> Result<(), String> {
-        let path = Self::get_log_path()?;
+    pub async fn clear(app: &AppHandle) -> Result<(), String> {
+        let path = Self::get_log_path(app)?;
         if path.exists() {
             let _ = tokio::fs::remove_file(&path).await;
         }
@@ -22,8 +26,8 @@ impl LogManager {
     }
 
     /// Get the current size of the log file to use as an offset.
-    pub async fn get_current_offset() -> u64 {
-        match Self::get_log_path() {
+    pub async fn get_current_offset(app: &AppHandle) -> u64 {
+        match Self::get_log_path(app) {
             Ok(path) if path.exists() => tokio::fs::metadata(&path)
                 .await
                 .map(|m| m.len())
@@ -33,8 +37,11 @@ impl LogManager {
     }
 
     /// Parse the log file from a given offset for deleted files.
-    pub async fn parse_deleted_files(start_offset: u64) -> Result<Vec<String>, String> {
-        let log_path = Self::get_log_path()?;
+    pub async fn parse_deleted_files(
+        app: &AppHandle,
+        start_offset: u64,
+    ) -> Result<Vec<String>, String> {
+        let log_path = Self::get_log_path(app)?;
         if !log_path.exists() {
             return Ok(vec![]);
         }

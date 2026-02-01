@@ -325,7 +325,11 @@ pub async fn download_gdrive(
     let paths = config.build_filesystem_paths()?;
     let body = config.build_request_body(&paths);
 
-    let endpoint = if config.sync_mode { "/sync/sync" } else { "/sync/copy" };
+    let endpoint = if config.sync_mode {
+        "/sync/sync"
+    } else {
+        "/sync/copy"
+    };
     let _result = start_sync_job(&client, &body, endpoint).await?;
 
     Ok("Download completed successfully".to_string())
@@ -371,12 +375,12 @@ pub async fn check_dry_run(
     }
 
     // Capture the current log offset to ignore previous logs
-    let start_offset = rclone::LogManager::get_current_offset().await;
+    let start_offset = rclone::LogManager::get_current_offset(&app).await;
 
     let result = start_sync_job(&client, &body, "/sync/sync").await?;
 
     // Parse logs from the offset
-    let deleted_files = rclone::LogManager::parse_deleted_files(start_offset).await?;
+    let deleted_files = rclone::LogManager::parse_deleted_files(&app, start_offset).await?;
 
     let would_delete = result.deletes > 0 || !deleted_files.is_empty();
     let stats_summary = format!(

@@ -4888,6 +4888,7 @@ name = "unofficial-neuro-kar-manager"
 version = "0.0.2"
 dependencies = [
  "chrono",
+ "dirs",
  "rclone-sdk",
  "regex",
  "reqwest 0.13.1",

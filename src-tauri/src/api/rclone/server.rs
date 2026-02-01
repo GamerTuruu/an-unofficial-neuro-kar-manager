@@ -1,11 +1,10 @@
 use super::LogManager;
-use crate::utils::get_app_data_dir;
 use rclone_sdk::Client;
+use std::sync::LazyLock;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
-use std::sync::LazyLock;
 
 pub const RC_PORT: u16 = 5572;
 pub const RC_URL: &str = "http://localhost:5572";
@@ -22,8 +21,8 @@ pub async fn is_server_running() -> bool {
 /// Starts the rclone RC server in the background
 pub async fn start_rc_server(app: &AppHandle) -> Result<(), String> {
     // Clear log file on startup
-    LogManager::clear().await?;
-    let log_file = LogManager::get_log_path()?;
+    LogManager::clear(app).await?;
+    let log_file = LogManager::get_log_path(app)?;
 
     let sidecar_command = app.shell().sidecar("rclone").map_err(|e| e.to_string())?;
 
@@ -73,12 +72,6 @@ pub async fn wait_for_server_shutdown() -> Result<(), String> {
 /// Returns an authenticated SDK Client, ensuring the server is running.
 pub async fn get_sdk_client(app: &AppHandle) -> Result<Client, String> {
     if !is_server_running().await {
-        // Ensure app data directory exists
-        let app_data_dir = get_app_data_dir()?;
-        tokio::fs::create_dir_all(&app_data_dir)
-            .await
-            .map_err(|e| format!("Failed to create app data directory: {}", e))?;
-
         start_rc_server(app).await?;
         wait_for_server().await?;
     }
