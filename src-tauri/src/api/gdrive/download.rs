@@ -185,9 +185,7 @@ impl DownloadConfig {
 /// Build filter rules for selected files
 fn build_file_filter(files: &[String]) -> serde_json::Value {
     if files.is_empty() {
-        return serde_json::json!({
-            "IncludeRule": ["non_existent_file_marker"]
-        });
+        return serde_json::json!({});
     }
 
     let mut final_includes = Vec::new();
