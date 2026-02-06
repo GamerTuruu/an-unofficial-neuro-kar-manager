@@ -11,6 +11,16 @@
     "dialog:default",
     "process:default",
     "shell:default",
+    "shell:allow-spawn",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/rclone",
+          "sidecar": true
+        }
+      ]
+    },
     "store:default"
   ]
 }

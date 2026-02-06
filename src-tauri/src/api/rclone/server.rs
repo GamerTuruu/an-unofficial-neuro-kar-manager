@@ -3,7 +3,6 @@ use rclone_sdk::Client;
 use std::sync::LazyLock;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
 
 pub const RC_PORT: u16 = 5572;
@@ -24,7 +23,7 @@ pub async fn start_rc_server(app: &AppHandle) -> Result<(), String> {
     LogManager::clear(app).await?;
     let log_file = LogManager::get_log_path(app)?;
 
-    let sidecar_command = app.shell().sidecar("rclone").map_err(|e| e.to_string())?;
+    let sidecar_command = super::get_rclone_command(app)?;
 
     let (mut _rx, child) = sidecar_command
         .args(&[

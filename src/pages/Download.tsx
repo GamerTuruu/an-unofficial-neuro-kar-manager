@@ -123,6 +123,15 @@ export default function DownloadPage() {
 
   const handleSelectDestination = async () => {
     try {
+      // On Android, use Downloads folder for now
+      const isAndroid = navigator.userAgent.includes("Android");
+      if (isAndroid) {
+        const downloadPath = "/storage/emulated/0/Download/";
+        form.setDestination(downloadPath);
+        download.appendLog(`Using Android default path: ${downloadPath}`);
+        return;
+      }
+
       const selected = await open({
         directory: true,
         multiple: false,

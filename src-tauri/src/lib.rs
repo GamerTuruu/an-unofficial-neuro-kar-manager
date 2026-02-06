@@ -42,12 +42,12 @@ impl SidecarManager {
 
 #[tauri::command]
 async fn check_rclone(app: tauri::AppHandle) -> bool {
-    use tauri_plugin_shell::ShellExt;
-    app.shell().sidecar("rclone").is_ok()
+    crate::api::rclone::get_rclone_command(&app).is_ok()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
     #[cfg(desktop)]
     {
