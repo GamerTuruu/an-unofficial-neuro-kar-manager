@@ -100,7 +100,7 @@ fn setup_android_sidecar(target_triple: &str, manifest_dir: &str) {
     );
 
     // Hardcoded for now - TODO: make this dynamic based on target_triple
-    let filename = "rclone-android-21-x64.gz";
+    let filename = "rclone-android-21-armv8a.gz";
     let url = format!("{}/{}", RCLONE_ANDROID_BASE_URL, filename);
 
     download_and_extract_gz(&url, &lib_path);

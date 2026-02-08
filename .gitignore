@@ -1,3 +1,6 @@
+# Keys
+*.jks
+
 # Logs
 logs
 *.log

@@ -11,16 +11,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          - platform: 'macos-latest' # ARM Mac
             args: '--target aarch64-apple-darwin'
-          - platform: 'ubuntu-22.04'
+          - platform: 'ubuntu-22.04' # x86 Linux
             args: ''
-          - platform: 'windows-latest'
+          - platform: 'windows-latest' # x86 Windows
             args: ''
+          - platform: 'ubuntu-22.04' # ARM Android
+            mobile: 'android'
+            args: '--target aarch64 --apk true'
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Decode keystore
+        if: matrix.mobile == 'android'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > src-tauri/gen/android/release.jks
+
+      - name: Write key.properties  # storeFile context is in android/app/, go one level up to android/release.jks
+        if: matrix.mobile == 'android'
+        run: |
+          cat <<EOF > src-tauri/gen/android/key.properties
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=../release.jks
+          EOF
 
       - uses: pnpm/action-setup@v4
         with:
@@ -28,14 +46,21 @@ jobs:
           run_install: true
           cache: true
 
+      - name: Setup Java
+        if: matrix.mobile == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || (matrix.mobile == 'android' && 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' || '') }}
 
       - name: Install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04' && matrix.mobile != 'android'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -44,10 +69,11 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
-          key: ${{ matrix.platform }}
+          key: ${{ matrix.platform }}-${{ matrix.mobile || 'desktop' }}
 
-      - uses: tauri-apps/tauri-action@a17391cacddaccc3ab8555be3f0e2ac19b10705a  # v1 (dev)
+      - uses: tauri-apps/tauri-action@063c0231f444e55760d98acb9c469b994269d4a5  # v1 (dev)
         id: tauri
         with:
           uploadWorkflowArtifacts: true
           args: ${{ matrix.args }}
+          mobile: ${{ matrix.mobile || '' }}  # Android SDK is included in runner image (https://github.com/actions/runner-images/blob/39bd9125f9da70b40db3fcc04fe378ff2da8aecf/images/ubuntu/Ubuntu2404-Readme.md)

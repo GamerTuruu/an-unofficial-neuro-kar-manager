@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm extract && pnpm compile && vite",
-    "build": "tsc && vite build",
+    "build": "pnpm extract && pnpm compile && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "biome check src --write && biome format src --write && cd src-tauri && cargo fmt",
