@@ -5,6 +5,8 @@ on:
 
 jobs:
   publish-tauri:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.platform }}
     permissions:
       contents: write
       id-token: write
@@ -13,17 +15,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # ARM Mac
+          - name: 'MacOS ARM64'
+            platform: 'macos-latest'
+            assetNamePattern: 'Unoff-NKAR-Manager-[version]-MacOS-Arm64[ext]'
             args: '--target aarch64-apple-darwin'
-          - platform: 'ubuntu-22.04' # x86 Linux
+          - name: 'Linux x64'
+            platform: 'ubuntu-22.04'
+            assetNamePattern: 'Unoff-NKAR-Manager-[version]-Linux-x64[ext]'
             args: ''
-          - platform: 'windows-latest' # x86 Windows
+          - name: 'Windows x64'
+            platform: 'windows-latest'
+            assetNamePattern: 'Unoff-NKAR-Manager-[version]-Windows-x64[ext]'
             args: ''
-          - platform: 'ubuntu-22.04' # ARM Android
+          - name: 'Android ARM64'
+            platform: 'ubuntu-22.04'
+            assetNamePattern: 'Unoff-NKAR-Manager-[version]-Android-Arm64[ext]'
             mobile: 'android'
             args: '--target aarch64 --apk true'
-
-    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
 
@@ -76,11 +84,12 @@ jobs:
       - uses: tauri-apps/tauri-action@063c0231f444e55760d98acb9c469b994269d4a5  # v1 (dev)
         id: tauri
         with:
+          releaseAssetNamePattern: ${{ matrix.assetNamePattern }}
+          args: ${{ matrix.args }}
+          mobile: ${{ matrix.mobile || '' }}  # Android SDK is included in runner image (https://github.com/actions/runner-images/blob/39bd9125f9da70b40db3fcc04fe378ff2da8aecf/images/ubuntu/Ubuntu2404-Readme.md)
           tagName: v__VERSION__
           releaseName: 'v__VERSION__'
           releaseDraft: true
-          args: ${{ matrix.args }}
-          mobile: ${{ matrix.mobile || '' }}  # Android SDK is included in runner image (https://github.com/actions/runner-images/blob/39bd9125f9da70b40db3fcc04fe378ff2da8aecf/images/ubuntu/Ubuntu2404-Readme.md)
 
       - name: Get artifact paths  # Parse list into multiline string for output; remove .app (cannot attest a directory)
         id: artifacts
