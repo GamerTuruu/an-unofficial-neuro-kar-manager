@@ -7,6 +7,8 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -79,3 +81,16 @@ jobs:
           releaseDraft: true
           args: ${{ matrix.args }}
           mobile: ${{ matrix.mobile || '' }}  # Android SDK is included in runner image (https://github.com/actions/runner-images/blob/39bd9125f9da70b40db3fcc04fe378ff2da8aecf/images/ubuntu/Ubuntu2404-Readme.md)
+
+      - name: Get artifact paths  # Parse list into multiline string for output; remove .app (cannot attest a directory)
+        id: artifacts
+        shell: bash
+        run: |
+           echo "paths<<EOF" >> $GITHUB_OUTPUT
+           echo '${{ steps.tauri.outputs.artifactPaths }}' | jq -r '.[] | select(endswith(".app") | not)' >> $GITHUB_OUTPUT
+           echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Attest
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.artifacts.outputs.paths }}
