@@ -50,7 +50,7 @@ jobs:
           storeFile=../release.jks
           EOF
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@1e1c8eafbd745f64b1ef30a7d7ed7965034c486c # v4.2.0+ (dev)
         with:
           version: 10
           run_install: true
