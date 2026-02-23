@@ -49,8 +49,8 @@ msgid "Advanced Options"
 msgstr "Advanced Options"
 
 #: src/components/download/AdvancedOptionsModal.tsx
-msgid "Appends '/Unofficial-Neuro-Karaoke-Archive' to the destination path."
-msgstr "Appends '/Unofficial-Neuro-Karaoke-Archive' to the destination path."
+msgid "Appends '/An-Unofficial-Neuro-Karaoke-Archive' to the destination path."
+msgstr "Appends '/An-Unofficial-Neuro-Karaoke-Archive' to the destination path."
 
 #: src/components/download/BackupWarningDialog.tsx
 msgid "Are you sure you want to continue?"
@@ -327,8 +327,8 @@ msgid "Track Renames (Hash Strategy)"
 msgstr "Track Renames (Hash Strategy)"
 
 #: src/pages/HomePage.tsx
-msgid "Unofficial Neuro Karaoke Archive Google Drive"
-msgstr "Unofficial Neuro Karaoke Archive Google Drive"
+msgid "An Unofficial Neuro Karaoke Archive Google Drive"
+msgstr "An Unofficial Neuro Karaoke Archive Google Drive"
 
 #: src/components/download/BackupWarningDialog.tsx
 msgid "Warning: Files Will Be Deleted"
@@ -343,8 +343,8 @@ msgstr "Warning: Potentially Destructive Operation"
 #~ msgstr "Welcome to Neuro Archive Manager"
 
 #: src/pages/HomePage.tsx
-msgid "Welcome to Unofficial Neuro Karaoke Archive Manager"
-msgstr "Welcome to Unofficial Neuro Karaoke Archive Manager"
+msgid "Welcome to An Unofficial Neuro Karaoke Archive Manager"
+msgstr "Welcome to An Unofficial Neuro Karaoke Archive Manager"
 
 #: src/components/download/AdvancedOptionsModal.tsx
 msgid "While download sync will delete files not in the archive normally, it may fail to delete excluded files unless this is checked. Only active in Sync Mode. Only applies if there is a filter selection. Equivalent to --delete-excluded."

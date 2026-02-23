@@ -1,12 +1,12 @@
-# Unofficial Neuro Karaoke Archive Manager
+# An Unofficial Neuro Karaoke Archive Manager
 
-A simple app to manage the Unofficial Neuro Karaoke Archive.
+A simple app to manage the An Unofficial Neuro Karaoke Archive.
 
-The name "Unofficial Neuro KAR Manager" derives itself as a play-on of **Kar**aoke **Ar**chive.
+The name "An Unofficial Neuro KAR Manager" derives itself as a play-on of **Kar**aoke **Ar**chive.
 
 ## Open Source Software
 
-Neuro Unofficial Archive Manager would not be possible without the following open source software:
+An Unofficial Neuro Archive Manager would not be possible without the following open source software:
 
 | Software                                                                       | License                                                                                                           |
 |--------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
@@ -16,6 +16,6 @@ Neuro Unofficial Archive Manager would not be possible without the following ope
 
 ## License
 
-Unofficial Neuro KAR Manager codebase is licensed under [MIT License](https://github.com/InfornoFire/unofficial-neuro-kar-manager/blob/main/LICENSE)
+An Unofficial Neuro KAR Manager codebase is licensed under [MIT License](https://github.com/InfornoFire/unofficial-neuro-kar-manager/blob/main/LICENSE)
 
 Images, photographs, and other visual assets in this repository are the property of their respective copyright holders (`All rights reserved`)

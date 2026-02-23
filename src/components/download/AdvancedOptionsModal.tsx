@@ -81,7 +81,7 @@ export function AdvancedOptionsModal({
               <HybridTooltipContent className="w-80">
                 <p className="text-sm">
                   <Trans>
-                    Appends '/Unofficial-Neuro-Karaoke-Archive' to the
+                    Appends '/An-Unofficial-Neuro-Karaoke-Archive' to the
                     destination path.
                   </Trans>
                 </p>
