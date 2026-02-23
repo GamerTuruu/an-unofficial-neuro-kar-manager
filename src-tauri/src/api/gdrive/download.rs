@@ -116,11 +116,11 @@ impl DownloadConfig {
             let already_has_subfolder = dst_path
                 .file_name()
                 .and_then(|name| name.to_str())
-                .map(|name| name == "Unofficial-Neuro-Karaoke-Archive")
+                .map(|name| name == "An-Unofficial-Neuro-Karaoke-Archive")
                 .unwrap_or(false);
 
             if !already_has_subfolder {
-                dst_path.push("Unofficial-Neuro-Karaoke-Archive");
+                dst_path.push("An-Unofficial-Neuro-Karaoke-Archive");
             }
         }
 

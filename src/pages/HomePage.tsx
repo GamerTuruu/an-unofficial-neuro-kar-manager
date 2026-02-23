@@ -17,7 +17,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-background text-foreground">
       <h1 className="text-4xl font-bold mb-4">
-        <Trans>Welcome to Unofficial Neuro Karaoke Archive Manager</Trans>
+        <Trans>Welcome to An Unofficial Neuro Karaoke Archive Manager</Trans>
       </h1>
       <p className="text-xl text-muted-foreground mb-8">
         <Trans>This page is under construction</Trans>
@@ -57,7 +57,7 @@ export default function HomePage() {
             alt="Google Drive"
             className="w-5 h-5"
           />
-          <Trans>Unofficial Neuro Karaoke Archive Google Drive</Trans>
+          <Trans>An Unofficial Neuro Karaoke Archive Google Drive</Trans>
           <ExternalLink className="w-4 h-4" />
         </Button>
       </div>
